@@ -1,2 +1,0 @@
-defmodule Edistream do
-end

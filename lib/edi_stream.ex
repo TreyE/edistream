@@ -1,0 +1,2 @@
+defmodule EdiStream do
+end
