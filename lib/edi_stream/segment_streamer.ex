@@ -44,7 +44,7 @@ defmodule EdiStream.SegmentStreamer do
     case data do
       ^f_sep -> stream_data(rest, f_sep, s_sep, [current_field|fields], "", callback, counter, callback_state)
       ^s_sep ->
-        callback.(callback_state, Enum.reverse([current_field|fields]), counter)
+        callback.(callback_state, clean_fields(Enum.reverse([current_field|fields])), counter)
         stream_data(rest, f_sep, s_sep, [], "", callback, counter + 1, callback_state)
       _ -> stream_data(rest, f_sep, s_sep, fields, current_field <> data, callback, counter, callback_state)
     end
@@ -66,17 +66,23 @@ defmodule EdiStream.SegmentStreamer do
     end
   end
 
+  defp clean_fields(fields) do
+    Enum.map(fields, &String.strip/1)
+  end
+
   defp perform_streaming(io_thing, f_sep, s_sep, callback, leftover_callback, callback_state) do
     stream = IO.binstream(io_thing, 1024)
     {leftover_fields, leftover_field, current_count} = Enum.reduce(stream, {[], "", 0}, fn(x, acc) -> 
       {fs, cf, cnt} = acc
       stream_data(x, f_sep, s_sep, fs, cf, callback, cnt, callback_state)
     end)
-    case {leftover_fields, leftover_field} do
+    leftover_f = String.strip(leftover_field)
+    leftover_fs = clean_fields(Enum.reverse(leftover_fields))
+    case {leftover_fs, leftover_f} do
       {[], ""} -> :ok 
       _ -> 
-        leftover_callback.(callback_state, Enum.reverse(leftover_fields), leftover_field, current_count)
-        {:warning, {:leftovers, Enum.reverse(leftover_fields), leftover_field}}
+        leftover_callback.(callback_state, leftover_fs, leftover_f, current_count)
+        {:warning, {:leftovers, leftover_fs, leftover_f}}
     end
   end
 end
