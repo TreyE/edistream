@@ -54,17 +54,15 @@ defmodule EdiStream.SegmentStreamer do
     {fields, current_field, counter}
   end
 
-  def stream_segments(io_thing, start_callback, segment_callback, leftover_callback, error_callback, callback_state \\ []) do
+  def stream_segments(io_thing, start_callback, segment_callback, finished_callback, callback_state \\ []) do
     {:ok, current_position} = :file.position(io_thing, :cur)
     sep_reader = determine_separators(io_thing)
     {:ok, _} = :file.position(io_thing, current_position)
     case sep_reader do
       {:ok, f_sep, s_sep} -> 
-        start_callback.(callback_state, f_sep, s_sep)
-        perform_streaming(io_thing, f_sep, s_sep, segment_callback, leftover_callback, callback_state)
-      {:error, other} -> 
-        error_callback.(callback_state, other)
-        {:error, other}
+        {:ok, init_state} = start_callback.(callback_state, f_sep, s_sep)
+        perform_streaming(io_thing, f_sep, s_sep, segment_callback, finished_callback, init_state)
+      {:error, other} -> {:error, other}
     end
   end
 
@@ -72,7 +70,7 @@ defmodule EdiStream.SegmentStreamer do
     Enum.map(fields, &String.strip/1)
   end
 
-  defp perform_streaming(io_thing, f_sep, s_sep, callback, leftover_callback, callback_state) do
+  defp perform_streaming(io_thing, f_sep, s_sep, callback, finished_callback, callback_state) do
     stream = IO.binstream(io_thing, 1024)
     {leftover_fields, leftover_field, current_count} = Enum.reduce(stream, {[], "", 0}, fn(x, acc) -> 
       {fs, cf, cnt} = acc
@@ -81,9 +79,11 @@ defmodule EdiStream.SegmentStreamer do
     leftover_f = String.strip(leftover_field)
     leftover_fs = clean_fields(Enum.reverse(leftover_fields))
     case {leftover_fs, leftover_f} do
-      {[], ""} -> :ok 
+      {[], ""} -> 
+        finished_callback.(callback_state, leftover_fs, leftover_f, current_count)
+        {:ok, current_count}
       _ -> 
-        leftover_callback.(callback_state, leftover_fs, leftover_f, current_count)
+        finished_callback.(callback_state, leftover_fs, leftover_f, current_count)
         {:warning, {:leftovers, leftover_fs, leftover_f}}
     end
   end
