@@ -54,12 +54,14 @@ defmodule EdiStream.SegmentStreamer do
     {fields, current_field, counter}
   end
 
-  def stream_segments(io_thing, callback, leftover_callback, error_callback, callback_state \\ []) do
+  def stream_segments(io_thing, start_callback, segment_callback, leftover_callback, error_callback, callback_state \\ []) do
     {:ok, current_position} = :file.position(io_thing, :cur)
     sep_reader = determine_separators(io_thing)
     {:ok, _} = :file.position(io_thing, current_position)
     case sep_reader do
-      {:ok, f_sep, s_sep} -> perform_streaming(io_thing, f_sep, s_sep, callback, leftover_callback, callback_state)
+      {:ok, f_sep, s_sep} -> 
+        start_callback.(callback_state, f_sep, s_sep)
+        perform_streaming(io_thing, f_sep, s_sep, segment_callback, leftover_callback, callback_state)
       {:error, other} -> 
         error_callback.(callback_state, other)
         {:error, other}
