@@ -1,5 +1,8 @@
 defmodule EdiStream.SegmentStreamer do
+  @type segment_streaming_state :: tuple
+  @type segment :: any
 
+  @spec segment_streamer(segment_streaming_state) :: {:halt, segment_streaming_state} | {[segment], segment_streaming_state}
   defp segment_streamer({f_sep, s_sep, fields, current_field, counter, io_thing}) do
     case IO.binread(io_thing, 512) do
       {:error, reason} -> raise reason
@@ -10,6 +13,7 @@ defmodule EdiStream.SegmentStreamer do
     end
   end
 
+  @spec segment_stream(IO.t) :: Stream.t
   def segment_stream(io_thing) do
     sep_reader = EdiStream.DelimiterDetector.find_separators(io_thing)
     case sep_reader do
