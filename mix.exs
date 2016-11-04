@@ -27,6 +27,8 @@ defmodule EdiStream.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:ex_parsec, "~> 0.2.1"}
+    ]
   end
 end
